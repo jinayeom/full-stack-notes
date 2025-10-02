@@ -78,6 +78,16 @@ export default function Home() {
           <code className="inline-code">git pull</code> your latest changes so they can build off the most up-to-date verion of your project.
         </p>
 
+        <h2 className="subheading">Centralized vs Distributed Version Control</h2>
+        <p className="body">
+          Now that you understand the basics, you may be wondering, "How is this any different than Google Drive, One Drive, etc?"
+          Great question! The "drives" that we're used to working with like Google Drive, OneDrive, Dropbox, are all 
+          <span className="font-bold"> Centralized Version Control (CVC)</span>. The CVC only saves the latest version of your file. 
+          It does not save any of the history or snapshots. Whereas with <span className="font-bold">Distributed Version Control (DVC)</span>,
+          not only do you get the latest version, but you also get all the snapshots/history associated with that file. 
+          This means that when you are pulling a file from the central server (eg GitHub), you are pulling all the latest version of that file 
+          along with all its history. 
+        </p>
      </div>
     </main>
   );
