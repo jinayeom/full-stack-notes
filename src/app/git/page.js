@@ -20,6 +20,7 @@ export default function Home() {
       <p className="body">
       Here is a high-level overview of how git and git providers work. 
      </p>
+     <div className="flex justify-center">
         <Image 
         src="/images/git/git-overview.png"
         alt="Overview of git commands for local git and git providers"
@@ -27,6 +28,7 @@ export default function Home() {
         height={500}
         className="fade-in-up rounded-lg"
       />
+      </div>
       <h3 className="subsubheading">Git</h3>
         <p className="body">
           Git is a version control system (VCS) that you can download onto your local device to help you keep track of changes
