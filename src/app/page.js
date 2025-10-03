@@ -33,6 +33,11 @@ export default function Home() {
         <div>
           <ul className="mt-12 flex flex-col items-left space-y-4 text-xl text-gray-700">
             <li>
+              <Link href="/django" className="button-link fade-in-up">
+              Django
+              </Link>
+            </li>
+            <li>
               <Link href="/git" className="button-link fade-in-up">
               Git Version Control
               </Link>
