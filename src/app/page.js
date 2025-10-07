@@ -187,7 +187,7 @@ export default function Home() {
         <p className="body">If you'd like to submit suggestions to help improve this page, please
           submit it below:
         </p>
-        <Link href="/suggestions/page.js" className="button-link fade-in-up">
+        <Link href="/suggestions" className="button-link fade-in-up">
         Submit a Suggestion
         </Link>
       </div>

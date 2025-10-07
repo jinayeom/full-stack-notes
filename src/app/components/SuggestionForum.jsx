@@ -10,21 +10,38 @@ export default function SuggestionForum() {
   const [toast, setToast] = useState("");
   const [suggestions, setSuggestions] = useState([]);
 
-  // Load saved suggestions from localStorage
+  // Load saved suggestions from API
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("suggestions");
-      if (raw) setSuggestions(JSON.parse(raw));
-    } catch {}
+    (async () => {
+      const res = await fetch("/api/suggestions", { cache: "no-store" });
+      const data = await res.json();
+      if (data.ok) setSuggestions(data.rows);
+    })();
   }, []);
+  
 
   // Save suggestions back to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("suggestions", JSON.stringify(suggestions));
-    } catch {}
-  }, [suggestions]);
-
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!validate()) return;
+  
+    const res = await fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, email, type, message }),
+    });
+    const data = await res.json();
+    if (!data.ok) { /* show error */ return; }
+  
+    const res2 = await fetch("/api/suggestions", { cache: "no-store" });
+    const data2 = await res2.json();
+    if (data2.ok) setSuggestions(data2.rows);
+  
+    setTitle(""); setEmail(""); setType("FEATURE"); setMessage("");
+    setToast("Thanks! Your suggestion has been submitted.");
+    setTimeout(() => setToast(""), 3000);
+  }
+  
   // Filters and sorting
   const [filterType, setFilterType] = useState("ALL");
   const [sortKey, setSortKey] = useState("newest");
