@@ -10,91 +10,115 @@ export default function SuggestionForum() {
   const [toast, setToast] = useState("");
   const [suggestions, setSuggestions] = useState([]);
 
-  // Load saved suggestions from API
+  // Load from API on mount
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/suggestions", { cache: "no-store" });
-      const data = await res.json();
-      if (data.ok) setSuggestions(data.rows);
+      try {
+        const res = await fetch("/api/suggestions", { cache: "no-store" });
+        const data = await res.json();
+        if (data.ok) {
+          // normalize created_at -> createdAt for UI
+          setSuggestions(
+            (data.rows || []).map((r) => ({
+              ...r,
+              createdAt: r.created_at ? new Date(r.created_at).getTime() : r.createdAt ?? Date.now(),
+            }))
+          );
+        } else {
+          setToast(data.error || "Failed to load suggestions");
+          setTimeout(() => setToast(""), 3000);
+        }
+      } catch {
+        setToast("Network error loading suggestions");
+        setTimeout(() => setToast(""), 3000);
+      }
     })();
   }, []);
-  
 
-  // Save suggestions back to localStorage
+  // -------- Validation --------
+  function validate() {
+    const e = {};
+    if (!title.trim()) e.title = "Title is required";
+    if (!email.trim()) e.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter a valid email";
+    const len = message.trim().length;
+    if (len < 10) e.message = "Message must be at least 10 characters";
+    if (len > 300) e.message = "Message cannot exceed 300 characters";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  // -------- Submit (ONLY this version; removed the duplicate) --------
   async function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
-  
-    const res = await fetch("/api/suggestions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, email, type, message }),
-    });
-    const data = await res.json();
-    if (!data.ok) { /* show error */ return; }
-  
-    const res2 = await fetch("/api/suggestions", { cache: "no-store" });
-    const data2 = await res2.json();
-    if (data2.ok) setSuggestions(data2.rows);
-  
-    setTitle(""); setEmail(""); setType("FEATURE"); setMessage("");
-    setToast("Thanks! Your suggestion has been submitted.");
-    setTimeout(() => setToast(""), 3000);
+
+    try {
+      const res = await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, email, type, message }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        const firstErr =
+          data.errors?.title ||
+          data.errors?.email ||
+          data.errors?.message ||
+          data.error ||
+          "Failed to submit";
+        setToast(firstErr);
+        setTimeout(() => setToast(""), 3000);
+        return;
+      }
+
+      // Refresh list after save
+      const res2 = await fetch("/api/suggestions", { cache: "no-store" });
+      const data2 = await res2.json();
+      if (data2.ok) {
+        setSuggestions(
+          (data2.rows || []).map((r) => ({
+            ...r,
+            createdAt: r.created_at ? new Date(r.created_at).getTime() : r.createdAt ?? Date.now(),
+          }))
+        );
+      }
+
+      // Reset form
+      setTitle("");
+      setEmail("");
+      setType("FEATURE");
+      setMessage("");
+      setErrors({});
+      setToast("Thanks! Your suggestion has been submitted.");
+      setTimeout(() => setToast(""), 3000);
+    } catch {
+      setToast("Network error submitting suggestion");
+      setTimeout(() => setToast(""), 3000);
+    }
   }
-  
-  // Filters and sorting
+
+  // -------- Filters & sorting --------
   const [filterType, setFilterType] = useState("ALL");
   const [sortKey, setSortKey] = useState("newest");
 
   const visibleSuggestions = useMemo(() => {
     let data = [...suggestions];
     if (filterType !== "ALL") data = data.filter((s) => s.type === filterType);
-    if (sortKey === "newest") data.sort((a, b) => b.createdAt - a.createdAt);
-    else if (sortKey === "oldest") data.sort((a, b) => a.createdAt - b.createdAt);
-    else if (sortKey === "title") data.sort((a, b) => a.title.localeCompare(b.title));
+    if (sortKey === "newest") data.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    else if (sortKey === "oldest") data.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    else if (sortKey === "title") data.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     return data;
   }, [suggestions, filterType, sortKey]);
 
-  // Validation
-  function validate() {
-    const e = {};
-    if (!title.trim()) e.title = "Title is required";
-    if (!email.trim()) e.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      e.email = "Enter a valid email";
-    if (!message.trim() || message.trim().length < 10)
-      e.message = "Message must be at least 10 characters";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  // Form submit
-  function handleSubmit(ev) {
-    ev.preventDefault();
-    if (!validate()) return;
-    const suggestion = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      email: email.trim(),
-      type,
-      message: message.trim(),
-      createdAt: Date.now(),
-    };
-    setSuggestions((prev) => [suggestion, ...prev]);
-    setTitle("");
-    setEmail("");
-    setType("FEATURE");
-    setMessage("");
-    setToast("Thanks! Your suggestion has been submitted.");
-    setTimeout(() => setToast(""), 3000);
-  }
-
   function removeSuggestion(id) {
+    // Optional: this only removes from UI; add a DELETE API later if you want persistence.
     setSuggestions((prev) => prev.filter((s) => s.id !== id));
   }
 
   function clearAll() {
-    if (confirm("Delete all suggestions on this device?")) setSuggestions([]);
+    // Optional: same note as above.
+    if (confirm("Clear list in the UI? (Does not delete from DB)")) setSuggestions([]);
   }
 
   return (
@@ -103,7 +127,7 @@ export default function SuggestionForum() {
 
       {toast && <div className="rounded-lg bg-green-100 p-3 text-sm">{toast}</div>}
 
-      <form onSubmit={handleSubmit} className="space-y-4 border p-4 rounded-lg shadow">
+      <form onSubmit={handleSubmit} className="space-y-4 border p-4 rounded-lg shadow" noValidate>
         <div>
           <label className="block text-sm font-medium">Title*</label>
           <input
@@ -149,16 +173,11 @@ export default function SuggestionForum() {
             maxLength={300}
             placeholder="Enter up to 300 characters"
           />
-          <p className="text-xs text-gray-500 text-right">
-            {message.length}/300
-          </p>
+          <p className="text-xs text-gray-500 text-right">{message.length}/300</p>
           {errors.message && <p className="text-xs text-red-600">{errors.message}</p>}
         </div>
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
+        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
           Submit
         </button>
       </form>
@@ -197,13 +216,12 @@ export default function SuggestionForum() {
         ) : (
           <ul className="space-y-3">
             {visibleSuggestions.map((s) => (
-              <li key={s.id} className="border rounded p-3">
+              <li key={s.id || s.createdAt} className="border rounded p-3">
                 <div className="flex justify-between">
                   <div>
                     <strong>{s.title}</strong>
                     <p className="text-xs text-gray-500">
-                      {new Date(s.createdAt).toLocaleString()}{" "}
-                      {s.email ? `• ${s.email}` : ""}
+                      {new Date(s.createdAt ?? Date.now()).toLocaleString()} {s.email ? `• ${s.email}` : ""}
                     </p>
                   </div>
                   <button
